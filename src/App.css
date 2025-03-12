@@ -1,0 +1,10 @@
+.app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.pattern-dots {
+  background-image: radial-gradient(currentColor 1px, transparent 1px);
+  background-size: calc(10 * 1px) calc(10 * 1px);
+} 
