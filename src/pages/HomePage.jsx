@@ -7,7 +7,7 @@ import Footer from '../components/Footer';
 const HomePage = () => {
   return (
     <div className="min-h-screen flex flex-col">
-      <Navbar />
+      {/* <Navbar /> */}
       <main className="flex-grow">
         <Hero />
         <Features />

@@ -6,6 +6,7 @@ const ImageSearchComponent = ({ onSearch }) => {
   const [previewUrl, setPreviewUrl] = useState('');
   const [dragActive, setDragActive] = useState(false);
   const [error, setError] = useState('');
+  const [resultLimit, setResultLimit] = useState(24);
   const fileInputRef = useRef(null);
 
   const handleFileChange = (e) => {
@@ -71,7 +72,9 @@ const ImageSearchComponent = ({ onSearch }) => {
       return;
     }
     
-    onSearch(selectedImage);
+    // Add the limit parameter to the image search
+    const imageWithLimit = Object.assign(selectedImage, { limit: resultLimit });
+    onSearch(imageWithLimit);
   };
 
   const handleReset = () => {
@@ -81,6 +84,10 @@ const ImageSearchComponent = ({ onSearch }) => {
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
+  };
+
+  const handleLimitChange = (e) => {
+    setResultLimit(parseInt(e.target.value));
   };
 
   return (
@@ -155,28 +162,48 @@ const ImageSearchComponent = ({ onSearch }) => {
       )}
       
       <div className="flex justify-end space-x-3 mt-6">
-        <button
-          type="button"
-          onClick={handleReset}
-          disabled={!selectedImage}
-          className={`px-4 py-2 border border-gray-300 rounded-md text-gray-700 ${
-            !selectedImage ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-50'
-          } focus:outline-none focus:ring-2 focus:ring-blue-500`}
-        >
-          Clear
-        </button>
-        <button
-          type="button"
-          onClick={handleSubmit}
-          disabled={!selectedImage}
-          className={`px-6 py-2 rounded-md ${
-            !selectedImage 
-              ? 'bg-blue-300 cursor-not-allowed' 
-              : 'bg-blue-600 hover:bg-blue-700'
-          } text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2`}
-        >
-          Search Similar Products
-        </button>
+        <div className="flex-grow">
+          <label htmlFor="resultLimit" className="block text-sm font-medium text-gray-700 mb-1">
+            Number of Results
+          </label>
+          <select
+            id="resultLimit"
+            value={resultLimit}
+            onChange={handleLimitChange}
+            className="px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+          >
+            <option value="12">12 items</option>
+            <option value="24">24 items</option>
+            <option value="36">36 items</option>
+            <option value="48">48 items</option>
+          </select>
+        </div>
+        <div className="flex items-end">
+          <button
+            type="button"
+            onClick={handleReset}
+            disabled={!selectedImage}
+            className={`px-4 py-2 border border-gray-300 rounded-md text-gray-700 ${
+              !selectedImage ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-50'
+            } focus:outline-none focus:ring-2 focus:ring-blue-500`}
+          >
+            Clear
+          </button>
+        </div>
+        <div className="flex items-end">
+          <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={!selectedImage}
+            className={`px-6 py-2 rounded-md ${
+              !selectedImage 
+                ? 'bg-blue-300 cursor-not-allowed' 
+                : 'bg-blue-600 hover:bg-blue-700'
+            } text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2`}
+          >
+            Search Similar Products
+          </button>
+        </div>
       </div>
     </div>
   );

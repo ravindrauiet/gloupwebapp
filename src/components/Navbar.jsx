@@ -4,11 +4,11 @@ import { Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline';
 
 const navigation = [
   { name: 'Home', to: '/' },
+  { name: 'Thrift Products', to: '/thrift-products' },
+  { name: 'Thrift Search', to: '/thrift-search' },
   { name: 'AI Mood Boards', to: '/#features' },
   { name: 'Sustainable Brands', to: '/#sustainable' },
   { name: 'Create Lookbook', to: '/#lookbook' },
-  { name: 'Thrift Products', to: '/thrift-products' },
-  { name: 'Shop', to: '/#shop' },
 ];
 
 const Navbar = () => {

@@ -8,7 +8,8 @@ const TextSearchComponent = ({ onSearch }) => {
     productType: '',
     minPrice: '',
     maxPrice: '',
-    condition: ''
+    condition: '',
+    limit: 24
   });
 
   const handleChange = (e) => {
@@ -31,9 +32,10 @@ const TextSearchComponent = ({ onSearch }) => {
       productType: '',
       minPrice: '',
       maxPrice: '',
-      condition: ''
+      condition: '',
+      limit: 24
     });
-    onSearch({}); // Reset search to show all products
+    onSearch({ limit: 24 });t
   };
 
   return (
@@ -150,6 +152,25 @@ const TextSearchComponent = ({ onSearch }) => {
               placeholder="Max $"
               className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
             />
+          </div>
+          
+          {/* Number of Results */}
+          <div>
+            <label htmlFor="limit" className="block text-sm font-medium text-gray-700 mb-1">
+              Number of Results
+            </label>
+            <select
+              id="limit"
+              name="limit"
+              value={searchParams.limit}
+              onChange={handleChange}
+              className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="12">12 items</option>
+              <option value="24">24 items</option>
+              <option value="36">36 items</option>
+              <option value="48">48 items</option>
+            </select>
           </div>
         </div>
         
