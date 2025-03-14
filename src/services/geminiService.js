@@ -79,7 +79,14 @@ CRITICAL REQUIREMENTS:
 1. Each product must have a UNIQUE ID - do not repeat IDs
 2. Provide exactly ${requestedCount} items
 3. Do not include any text before or after the JSON array
-4. Generate diverse products with different categories, brands, and price points`;
+4. Generate diverse products with different categories, brands, and price points
+5. The "tags" array must be COMPREHENSIVE and include:
+   - Material types (cotton, denim, leather, wool, etc.)
+   - Style descriptors (vintage, modern, casual, formal, etc.)
+   - Product features (button-up, high-waisted, distressed, etc.)
+   - Colors (red, blue, black, white, etc.)
+   - Patterns (striped, floral, plaid, solid, etc.)
+   - Specific item types (jacket, dress, jeans, hat, etc.)`;
 
   console.log('📝 Final prompt:', prompt);
   return prompt;
@@ -754,7 +761,7 @@ export const getAllThriftProducts = async () => {
 import { thriftProducts } from './mockThriftProducts';
 
 // Simulated Gemini API key - in a real application, use environment variables
-const GEMINI_API_KEY = "YOUR_GEMINI_API_KEY"; 
+const GEMINI_API_KEY = "AIzaSyDYGs1IsVCqJmd67IqE4ffnElmgA_fk_JI"; 
 
 /**
  * Analyzes an image using Gemini AI to extract product details
@@ -768,14 +775,38 @@ export const analyzeImageWithGemini = async (imageFile) => {
     // Convert image to base64 for sending to API
     const base64Image = await convertImageToBase64(imageFile);
     
-    // In a real implementation, you would make an API call to Gemini here
+    // Create a specific prompt for detailed attribute extraction that focuses on clothing and accessories
+    const analysisPrompt = `Analyze this image of clothing or fashion accessories. 
+    You are a specialist in thrift clothing and accessories - focus ONLY on wearable items.
+    
+    Extract the following attributes and return them in a structured JSON format:
+    
+    1. category: The main category, ONLY use one of: "Clothing", "Footwear", or "Accessories"
+    2. subCategory: The specific type within that category, such as:
+       - For Clothing: Jacket, Dress, T-shirt, Jeans, Sweater, Skirt, Pants, Blouse, Shirt, Hoodie, Coat
+       - For Footwear: Sneakers, Boots, Sandals, Heels, Flats, Loafers
+       - For Accessories: Bag, Hat, Scarf, Jewelry, Watch, Belt, Sunglasses, Gloves
+    3. colors: An array of ALL colors present in the item
+    4. materials: An array of materials if identifiable (e.g., cotton, denim, leather)
+    5. style: The general style (e.g., vintage, casual, formal, sporty)
+    6. pattern: Any visible pattern (e.g., solid, striped, floral, plaid)
+    7. specific_features: Array of notable features (e.g., buttons, zippers, high-waisted, distressed)
+    8. condition: Apparent condition if visible (e.g., new, pre-owned, vintage)
+    9. tags: A COMPREHENSIVE array of searchable keywords including all of the above plus any other relevant descriptors
+    
+    IMPORTANT: This is ONLY for fashion items and wearable accessories. Do NOT classify the image as electronics, furniture, or any non-wearable items.
+    
+    Return ONLY the JSON object with these fields, no other text.`;
+    
+    console.log('Sending image to Gemini API with detailed analysis prompt...');
+    
+    // In a real implementation, you would make an API call to Gemini here with the prompt and image
     // For now, we'll simulate a response with a delay
-    console.log('Sending image to Gemini API...');
     await new Promise(resolve => setTimeout(resolve, 1500)); // Simulate API delay
     
     // Simulated Gemini AI extraction of product details
     // In a real implementation, this would be the response from the API
-    const extractedDetails = simulateGeminiAnalysis(base64Image);
+    const extractedDetails = simulateDetailedGeminiAnalysis(base64Image);
     console.log('✅ Gemini analysis complete, extracted details:', extractedDetails);
     
     return extractedDetails;
@@ -797,7 +828,7 @@ export const searchProductsByImageAttributes = async (imageAttributes) => {
     // Filter products based on extracted attributes
     let matchingProducts = [...thriftProducts];
     
-    // Match by category
+    // Match by category and subcategory
     if (imageAttributes.category) {
       const categoryLower = imageAttributes.category.toLowerCase();
       matchingProducts = matchingProducts.filter(product => 
@@ -805,6 +836,72 @@ export const searchProductsByImageAttributes = async (imageAttributes) => {
         product.subCategory?.toLowerCase().includes(categoryLower)
       );
       console.log(`After category filter (${categoryLower}): ${matchingProducts.length} products`);
+    }
+
+    if (imageAttributes.subCategory) {
+      const subCategoryLower = imageAttributes.subCategory.toLowerCase();
+      const subCategoryMatches = matchingProducts.filter(product => 
+        product.subCategory?.toLowerCase().includes(subCategoryLower) ||
+        product.name?.toLowerCase().includes(subCategoryLower) ||
+        (product.tags && product.tags.some(tag => tag.toLowerCase() === subCategoryLower))
+      );
+      
+      // If we have matches, prioritize them
+      if (subCategoryMatches.length > 0) {
+        matchingProducts = [
+          ...subCategoryMatches,
+          ...matchingProducts.filter(p => !subCategoryMatches.includes(p)).slice(0, 3)
+        ];
+      }
+      console.log(`After subCategory matching (${subCategoryLower}): ${matchingProducts.length} products`);
+    }
+    
+    // MAJOR IMPROVEMENT: Use tags for matching by creating a score-based system
+    if (imageAttributes.tags && imageAttributes.tags.length > 0) {
+      const scoredProducts = matchingProducts.map(product => {
+        let tagMatchScore = 0;
+        
+        // Only proceed if the product has tags
+        if (product.tags && product.tags.length > 0) {
+          // Count how many tags from the image match the product tags
+          imageAttributes.tags.forEach(imageTag => {
+            const imageTagLower = imageTag.toLowerCase();
+            
+            // Exact tag match
+            if (product.tags.some(productTag => productTag.toLowerCase() === imageTagLower)) {
+              tagMatchScore += 3; // Higher score for exact matches
+            } 
+            // Partial tag match
+            else if (product.tags.some(productTag => 
+              productTag.toLowerCase().includes(imageTagLower) || 
+              imageTagLower.includes(productTag.toLowerCase()))) {
+              tagMatchScore += 1; // Lower score for partial matches
+            }
+            
+            // Additional checks in name and description
+            if (product.name?.toLowerCase().includes(imageTagLower)) {
+              tagMatchScore += 2;
+            }
+            
+            if (product.description?.toLowerCase().includes(imageTagLower)) {
+              tagMatchScore += 1;
+            }
+          });
+        }
+        
+        return { product, tagMatchScore };
+      });
+      
+      // Sort by tag match score descending
+      scoredProducts.sort((a, b) => b.tagMatchScore - a.tagMatchScore);
+      
+      // Prioritize products with higher tag match scores
+      if (scoredProducts.length > 0 && scoredProducts[0].tagMatchScore > 0) {
+        console.log(`Tag matching produced scores ranging from ${scoredProducts[0].tagMatchScore} to ${scoredProducts[scoredProducts.length-1].tagMatchScore}`);
+        matchingProducts = scoredProducts.map(item => item.product);
+      }
+      
+      console.log(`After tag matching: ${matchingProducts.length} products`);
     }
     
     // Match by color (search in tags, description)
@@ -815,7 +912,7 @@ export const searchProductsByImageAttributes = async (imageAttributes) => {
           const colorLower = color.toLowerCase();
           return (
             (product.description && product.description.toLowerCase().includes(colorLower)) ||
-            (product.tags && product.tags.some(tag => tag.toLowerCase().includes(colorLower)))
+            (product.tags && product.tags.some(tag => tag.toLowerCase().includes(colorLower) || colorLower.includes(tag.toLowerCase())))
           );
         });
       });
@@ -825,13 +922,55 @@ export const searchProductsByImageAttributes = async (imageAttributes) => {
         // Prioritize color matches but keep some other products as fallback
         matchingProducts = [
           ...colorMatches, 
-          ...matchingProducts.filter(p => !colorMatches.includes(p)).slice(0, 5)
+          ...matchingProducts.filter(p => !colorMatches.includes(p)).slice(0, 3)
         ];
       }
       console.log(`After color matching: ${matchingProducts.length} products`);
     }
     
-    // Match by style/pattern
+    // Match by material if available
+    if (imageAttributes.materials && imageAttributes.materials.length > 0) {
+      const materialMatches = matchingProducts.filter(product => {
+        return imageAttributes.materials.some(material => {
+          const materialLower = material.toLowerCase();
+          return (
+            (product.description && product.description.toLowerCase().includes(materialLower)) ||
+            (product.tags && product.tags.some(tag => tag.toLowerCase().includes(materialLower))) ||
+            (product.name && product.name.toLowerCase().includes(materialLower))
+          );
+        });
+      });
+      
+      // Prioritize material matches
+      if (materialMatches.length > 0) {
+        matchingProducts = [
+          ...materialMatches,
+          ...matchingProducts.filter(p => !materialMatches.includes(p)).slice(0, 3)
+        ];
+      }
+      console.log(`After material matching: ${matchingProducts.length} products`);
+    }
+    
+    // Match by pattern if available
+    if (imageAttributes.pattern) {
+      const patternLower = imageAttributes.pattern.toLowerCase();
+      const patternMatches = matchingProducts.filter(product => 
+        (product.description && product.description.toLowerCase().includes(patternLower)) ||
+        (product.tags && product.tags.some(tag => tag.toLowerCase().includes(patternLower))) ||
+        (product.name && product.name.toLowerCase().includes(patternLower))
+      );
+      
+      // Prioritize pattern matches
+      if (patternMatches.length > 0) {
+        matchingProducts = [
+          ...patternMatches,
+          ...matchingProducts.filter(p => !patternMatches.includes(p)).slice(0, 3)
+        ];
+      }
+      console.log(`After pattern matching (${patternLower}): ${matchingProducts.length} products`);
+    }
+    
+    // Match by style
     if (imageAttributes.style) {
       const styleLower = imageAttributes.style.toLowerCase();
       const styleMatches = matchingProducts.filter(product => 
@@ -844,10 +983,33 @@ export const searchProductsByImageAttributes = async (imageAttributes) => {
       if (styleMatches.length > 0) {
         matchingProducts = [
           ...styleMatches,
-          ...matchingProducts.filter(p => !styleMatches.includes(p)).slice(0, 5)
+          ...matchingProducts.filter(p => !styleMatches.includes(p)).slice(0, 3)
         ];
       }
       console.log(`After style matching (${styleLower}): ${matchingProducts.length} products`);
+    }
+    
+    // Match by specific features if available
+    if (imageAttributes.specific_features && imageAttributes.specific_features.length > 0) {
+      const featureMatches = matchingProducts.filter(product => {
+        return imageAttributes.specific_features.some(feature => {
+          const featureLower = feature.toLowerCase();
+          return (
+            (product.description && product.description.toLowerCase().includes(featureLower)) ||
+            (product.tags && product.tags.some(tag => tag.toLowerCase().includes(featureLower))) ||
+            (product.name && product.name.toLowerCase().includes(featureLower))
+          );
+        });
+      });
+      
+      // Prioritize feature matches
+      if (featureMatches.length > 0) {
+        matchingProducts = [
+          ...featureMatches,
+          ...matchingProducts.filter(p => !featureMatches.includes(p)).slice(0, 3)
+        ];
+      }
+      console.log(`After feature matching: ${matchingProducts.length} products`);
     }
     
     // Match by condition (if detected)
@@ -861,7 +1023,7 @@ export const searchProductsByImageAttributes = async (imageAttributes) => {
       if (conditionMatches.length > 0) {
         matchingProducts = [
           ...conditionMatches,
-          ...matchingProducts.filter(p => !conditionMatches.includes(p)).slice(0, 5)
+          ...matchingProducts.filter(p => !conditionMatches.includes(p)).slice(0, 3)
         ];
       }
       console.log(`After condition matching: ${matchingProducts.length} products`);
@@ -894,32 +1056,109 @@ const convertImageToBase64 = (imageFile) => {
   });
 };
 
-// Helper function to simulate Gemini AI analysis
-// In a real implementation, this would be replaced with actual API call
-const simulateGeminiAnalysis = (base64Image) => {
-  // Simulated detection based on the image filename or random selection
-  // In a real implementation, this would come from Gemini's analysis
+// Enhanced simulator to include more detailed attributes matching the new prompt
+// Focus only on clothing and wearable accessories
+const simulateDetailedGeminiAnalysis = (base64Image) => {
+  // Simulated detection - restricted to clothing and accessories only
   
-  const categories = ['Clothing', 'Footwear', 'Accessories', 'Electronics', 'Furniture'];
-  const colors = ['red', 'blue', 'green', 'black', 'white', 'yellow', 'pink', 'purple', 'brown', 'gray'];
-  const styles = ['vintage', 'modern', 'casual', 'formal', 'sporty', 'bohemian', 'minimalist', 'retro'];
-  const conditions = ['new', 'pre-owned', 'vintage'];
+  // Only clothing-related categories
+  const categories = ['Clothing', 'Footwear', 'Accessories'];
   
-  // Randomly select attributes to simulate AI detection
-  // In a real implementation, these would be determined by the AI model
+  // More detailed subcategories for each main category
+  const subCategories = {
+    'Clothing': ['Jacket', 'Dress', 'T-shirt', 'Jeans', 'Sweater', 'Skirt', 'Pants', 'Blouse', 'Shirt', 'Hoodie', 'Coat'],
+    'Footwear': ['Sneakers', 'Boots', 'Sandals', 'Heels', 'Flats', 'Loafers'],
+    'Accessories': ['Bag', 'Hat', 'Scarf', 'Jewelry', 'Watch', 'Belt', 'Sunglasses', 'Gloves']
+  };
+  
+  const colors = ['red', 'blue', 'green', 'black', 'white', 'yellow', 'pink', 'purple', 'brown', 'gray', 'beige', 'navy', 'cream', 'teal', 'burgundy', 'olive', 'orange', 'turquoise'];
+  const materials = ['cotton', 'denim', 'leather', 'wool', 'polyester', 'linen', 'silk', 'suede', 'canvas', 'knit', 'nylon', 'corduroy', 'satin', 'tweed', 'velvet', 'fleece'];
+  const styles = ['vintage', 'modern', 'casual', 'formal', 'sporty', 'bohemian', 'minimalist', 'retro', 'classic', 'streetwear', 'preppy', 'grunge', 'athleisure', 'business', 'punk'];
+  const patterns = ['solid', 'striped', 'floral', 'plaid', 'polka dot', 'checkered', 'geometric', 'abstract', 'graphic', 'animal print', 'tie-dye', 'paisley', 'herringbone'];
+  const features = ['buttons', 'zippers', 'pockets', 'high-waisted', 'oversized', 'fitted', 'distressed', 'cropped', 'collared', 'sleeveless', 'hooded', 'embroidered', 'ruffled', 'pleated', 'frayed', 'patched', 'tapered', 'relaxed-fit', 'v-neck', 'crew-neck'];
+  const conditions = ['new', 'like new', 'good', 'pre-owned', 'vintage', 'excellent', 'gently used'];
+  
+  // Randomly select a category - but biased toward clothing since that's most common
+  let category;
+  const categoryRandom = Math.random();
+  if (categoryRandom < 0.6) {
+    category = 'Clothing'; // 60% chance of clothing
+  } else if (categoryRandom < 0.8) {
+    category = 'Footwear'; // 20% chance of footwear
+  } else {
+    category = 'Accessories'; // 20% chance of accessories
+  }
+  
+  // Select appropriate subcategory based on category
+  const subCategory = subCategories[category][Math.floor(Math.random() * subCategories[category].length)];
+  
+  // Select 1-3 random colors
+  const numColors = Math.floor(Math.random() * 2) + 1; // 1 or 2 colors
+  const selectedColors = [];
+  for (let i = 0; i < numColors; i++) {
+    const color = colors[Math.floor(Math.random() * colors.length)];
+    if (!selectedColors.includes(color)) {
+      selectedColors.push(color);
+    }
+  }
+  
+  // Select 1-2 random materials
+  const numMaterials = Math.floor(Math.random() * 2) + 1; // 1 or 2 materials
+  const selectedMaterials = [];
+  for (let i = 0; i < numMaterials; i++) {
+    const material = materials[Math.floor(Math.random() * materials.length)];
+    if (!selectedMaterials.includes(material)) {
+      selectedMaterials.push(material);
+    }
+  }
+  
+  // Select a random style
+  const style = styles[Math.floor(Math.random() * styles.length)];
+  
+  // Select a random pattern
+  const pattern = patterns[Math.floor(Math.random() * patterns.length)];
+  
+  // Select 1-3 random features
+  const numFeatures = Math.floor(Math.random() * 3) + 1; // 1 to 3 features
+  const selectedFeatures = [];
+  for (let i = 0; i < numFeatures; i++) {
+    const feature = features[Math.floor(Math.random() * features.length)];
+    if (!selectedFeatures.includes(feature)) {
+      selectedFeatures.push(feature);
+    }
+  }
+  
+  // Select a random condition
+  const condition = conditions[Math.floor(Math.random() * conditions.length)];
+  
+  // Create comprehensive tags array combining all attributes
+  const tags = [
+    category.toLowerCase(),
+    subCategory.toLowerCase(),
+    ...selectedColors,
+    ...selectedMaterials,
+    style,
+    pattern,
+    ...selectedFeatures,
+    condition
+  ];
+  
+  // Return the detailed attributes
   return {
-    category: categories[Math.floor(Math.random() * categories.length)],
-    colors: [
-      colors[Math.floor(Math.random() * colors.length)],
-      colors[Math.floor(Math.random() * colors.length)]
-    ].filter((v, i, a) => a.indexOf(v) === i), // Remove duplicates
-    style: styles[Math.floor(Math.random() * styles.length)],
-    condition: Math.random() > 0.5 ? conditions[Math.floor(Math.random() * conditions.length)] : null,
-    confidence: 0.8 + Math.random() * 0.2, // Random confidence score between 0.8 and 1.0
+    category,
+    subCategory,
+    colors: selectedColors,
+    materials: selectedMaterials,
+    style,
+    pattern,
+    specific_features: selectedFeatures,
+    condition,
+    tags,
+    confidence: 0.8 + Math.random() * 0.2 // Random confidence score between 0.8 and 1.0
   };
 };
 
-// Helper function to calculate relevance scores for products
+// Enhanced relevance score calculation that puts more emphasis on tags
 const calculateRelevanceScores = (products, attributes) => {
   return products
     .map(product => {
@@ -932,6 +1171,31 @@ const calculateRelevanceScores = (products, attributes) => {
         score += 5;
       }
       
+      // Subcategory match
+      if (attributes.subCategory && 
+          (product.subCategory?.toLowerCase().includes(attributes.subCategory.toLowerCase()) ||
+           product.name?.toLowerCase().includes(attributes.subCategory.toLowerCase()))) {
+        score += 6;
+      }
+      
+      // Tag matches - most important!
+      if (attributes.tags && product.tags) {
+        attributes.tags.forEach(attrTag => {
+          const attrTagLower = attrTag.toLowerCase();
+          
+          // Exact tag match
+          if (product.tags.some(productTag => productTag.toLowerCase() === attrTagLower)) {
+            score += 4; // Higher score for exact matches
+          } 
+          // Partial tag match
+          else if (product.tags.some(productTag => 
+            productTag.toLowerCase().includes(attrTagLower) || 
+            attrTagLower.includes(productTag.toLowerCase()))) {
+            score += 2; // Lower score for partial matches
+          }
+        });
+      }
+      
       // Color matches
       if (attributes.colors) {
         attributes.colors.forEach(color => {
@@ -939,12 +1203,36 @@ const calculateRelevanceScores = (products, attributes) => {
           
           // Check description for color mention
           if (product.description?.toLowerCase().includes(colorLower)) {
-            score += 3;
+            score += 2;
           }
           
           // Check tags for color mention
           if (product.tags?.some(tag => tag.toLowerCase().includes(colorLower))) {
-            score += 4;
+            score += 3;
+          }
+          
+          // Check name for color mention
+          if (product.name?.toLowerCase().includes(colorLower)) {
+            score += 3;
+          }
+        });
+      }
+      
+      // Material matches
+      if (attributes.materials) {
+        attributes.materials.forEach(material => {
+          const materialLower = material.toLowerCase();
+          
+          if (product.description?.toLowerCase().includes(materialLower)) {
+            score += 2;
+          }
+          
+          if (product.tags?.some(tag => tag.toLowerCase().includes(materialLower))) {
+            score += 3;
+          }
+          
+          if (product.name?.toLowerCase().includes(materialLower)) {
+            score += 3;
           }
         });
       }
@@ -954,16 +1242,52 @@ const calculateRelevanceScores = (products, attributes) => {
         const styleLower = attributes.style.toLowerCase();
         
         if (product.description?.toLowerCase().includes(styleLower)) {
-          score += 3;
+          score += 2;
         }
         
         if (product.tags?.some(tag => tag.toLowerCase().includes(styleLower))) {
-          score += 4;
+          score += 3;
         }
         
         if (product.name?.toLowerCase().includes(styleLower)) {
-          score += 4;
+          score += 3;
         }
+      }
+      
+      // Pattern match
+      if (attributes.pattern) {
+        const patternLower = attributes.pattern.toLowerCase();
+        
+        if (product.description?.toLowerCase().includes(patternLower)) {
+          score += 2;
+        }
+        
+        if (product.tags?.some(tag => tag.toLowerCase().includes(patternLower))) {
+          score += 3;
+        }
+        
+        if (product.name?.toLowerCase().includes(patternLower)) {
+          score += 3;
+        }
+      }
+      
+      // Specific features match
+      if (attributes.specific_features) {
+        attributes.specific_features.forEach(feature => {
+          const featureLower = feature.toLowerCase();
+          
+          if (product.description?.toLowerCase().includes(featureLower)) {
+            score += 2;
+          }
+          
+          if (product.tags?.some(tag => tag.toLowerCase().includes(featureLower))) {
+            score += 3;
+          }
+          
+          if (product.name?.toLowerCase().includes(featureLower)) {
+            score += 3;
+          }
+        });
       }
       
       // Condition match

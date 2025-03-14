@@ -162,6 +162,18 @@ const ThriftSearch = () => {
   const handleImageUpload = (event) => {
     const file = event.target.files[0];
     if (file) {
+      // Clear previous search results and status when uploading a new image
+      setImageSearchResults([]);
+      setImageSearchError(null);
+      setImageSearchStatus({
+        step: null,
+        message: '',
+        complete: false,
+        attributes: null,
+        error: null
+      });
+      
+      // Set the new image
       setSelectedImage(file);
       const reader = new FileReader();
       reader.onloadend = () => {
@@ -259,10 +271,20 @@ const ThriftSearch = () => {
   };
 
   const handleCloseImageDialog = () => {
+    // Completely reset all image search related state
     setShowImageDialog(false);
     setSelectedImage(null);
     setImagePreview(null);
     setImageSearchResults([]);
+    setImageSearchError(null);
+    setImageSearchStatus({
+      step: null,
+      message: '',
+      complete: false,
+      attributes: null,
+      error: null
+    });
+    setImageSearchLoading(false);
   };
 
   const handleCloseSnackbar = () => {
@@ -641,28 +663,47 @@ const ThriftSearch = () => {
           </Box>
         </DialogTitle>
         <DialogContent>
-          {/* Image Preview */}
-          {imagePreview && (
-            <Box sx={{ mb: 3, textAlign: 'center' }}>
-              <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
-                Your uploaded image:
-              </Typography>
-              <img
-                src={imagePreview}
-                alt="Preview"
-                style={{ 
-                  maxWidth: '100%', 
-                  maxHeight: '300px',
-                  borderRadius: '8px',
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
-                }}
-              />
-            </Box>
-          )}
+          {/* Top Section: Image Preview and Search Button - Always Visible */}
+          <Box sx={{ mb: 3 }}>
+            {/* Image Preview */}
+            {imagePreview && (
+              <Box sx={{ mb: 3, textAlign: 'center' }}>
+                <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
+                  Your uploaded image:
+                </Typography>
+                <img
+                  src={imagePreview}
+                  alt="Preview"
+                  style={{ 
+                    maxWidth: '100%', 
+                    maxHeight: '300px',
+                    borderRadius: '8px',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+                  }}
+                />
+              </Box>
+            )}
 
-          {/* AI Analysis Status */}
+            {/* Search Button - Always Visible Near Top */}
+            <Box sx={{ display: 'flex', justifyContent: 'center', my: 3 }}>
+              <Button
+                variant="contained"
+                onClick={handleImageSearch}
+                disabled={imageSearchLoading || !selectedImage}
+                startIcon={imageSearchLoading ? <CircularProgress size={20} /> : <AIIcon />}
+                size="large"
+                sx={{ minWidth: '250px', py: 1.2 }}
+              >
+                {imageSearchLoading ? 'Analyzing...' : 'Analyze with Gemini AI'}
+              </Button>
+            </Box>
+          </Box>
+          
+          <Divider sx={{ mb: 3 }} />
+          
+          {/* Middle Section: AI Analysis Status */}
           {imageSearchStatus.step && (
-            <Box sx={{ mb: 3, mt: 2 }}>
+            <Box sx={{ mb: 3 }}>
               <Typography variant="subtitle1" gutterBottom>
                 {imageSearchStatus.step === 'analyzing' && 'AI Image Analysis'}
                 {imageSearchStatus.step === 'searching' && 'Finding Similar Products'}
@@ -724,25 +765,18 @@ const ThriftSearch = () => {
               )}
             </Box>
           )}
-
-          {/* Search Button */}
-          <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
-            <Button
-              variant="contained"
-              onClick={handleImageSearch}
-              disabled={imageSearchLoading || !selectedImage}
-              startIcon={imageSearchLoading ? <CircularProgress size={20} /> : <AIIcon />}
-              sx={{ minWidth: '200px' }}
-            >
-              {imageSearchLoading ? 'Analyzing...' : 'Analyze with Gemini AI'}
-            </Button>
-          </Box>
           
-          <Divider sx={{ mb: 3 }} />
+          {/* Show any errors not related to the analysis process */}
+          {imageSearchError && !imageSearchStatus.error && (
+            <Alert severity="error" sx={{ mt: 2, mb: 3 }}>
+              {imageSearchError}
+            </Alert>
+          )}
           
-          {/* Results Section */}
-          {imageSearchResults.length > 0 && (
+          {/* Bottom Section: Results (only shown after analysis) */}
+          {imageSearchResults.length > 0 && imageSearchStatus.complete && (
             <>
+              <Divider sx={{ mb: 3 }} />
               <Typography variant="h6" gutterBottom>
                 Similar Products ({imageSearchResults.length})
               </Typography>
@@ -779,12 +813,6 @@ const ThriftSearch = () => {
               </Grid>
             </>
           )}
-          
-          {imageSearchError && (
-            <Alert severity="error" sx={{ mt: 2 }}>
-              {imageSearchError}
-            </Alert>
-          )}
         </DialogContent>
         <DialogActions>
           <Button onClick={handleCloseImageDialog}>Close</Button>
@@ -800,6 +828,7 @@ const ThriftSearch = () => {
                 });
               }} 
               color="primary"
+              variant="contained"
             >
               Show Results in Main View
             </Button>
