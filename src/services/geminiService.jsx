@@ -5,6 +5,9 @@ const API_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/models';
 // Using the newer gemini-1.5-flash-002 model for both text and image queries
 const MODEL_NAME = 'gemini-1.5-flash-002';
 
+// Export the constants for use in other files
+export { API_KEY, API_BASE_URL, MODEL_NAME };
+
 // Validate API key
 if (!API_KEY || API_KEY === 'YOUR_API_KEY_HERE' || API_KEY.length < 10) {
   console.error('❌ CRITICAL ERROR: Invalid or missing Gemini API key!');
@@ -768,6 +771,7 @@ const GEMINI_API_KEY = "AIzaSyDYGs1IsVCqJmd67IqE4ffnElmgA_fk_JI";
  * @param {File} imageFile - The image file to analyze
  * @returns {Promise<Object>} - Extracted product attributes
  */
+
 export const analyzeImageWithGemini = async (imageFile) => {
   console.log('🔍 Starting Gemini image analysis for', imageFile.name);
   

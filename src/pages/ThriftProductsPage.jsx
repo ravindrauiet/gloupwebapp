@@ -4,7 +4,7 @@ import Footer from '../components/Footer';
 import ThriftProductsList from '../components/thrift/ThriftProductsList';
 import TextSearchComponent from '../components/thrift/TextSearchComponent';
 import ImageSearchComponent from '../components/thrift/ImageSearchComponent';
-import { searchThriftProducts, searchByImage } from '../services/geminiService';
+import { searchThriftProducts, searchByImage } from '../services/geminiService.jsx';
 
 // Simple test to directly check Gemini API connectivity
 const testGeminiAPI = async () => {

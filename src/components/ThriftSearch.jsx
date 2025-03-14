@@ -42,7 +42,7 @@ import {
   AutoAwesome as AIIcon
 } from '@mui/icons-material';
 import { searchThriftProducts, searchByImage, getAllThriftProducts } from '../services/mockThriftService';
-import { analyzeImageWithGemini, searchProductsByImageAttributes } from '../services/geminiService';
+import { analyzeImageWithGemini, searchProductsByImageAttributes } from '../services/geminiService.jsx';
 
 const ThriftSearch = () => {
   const [searchQuery, setSearchQuery] = useState('');

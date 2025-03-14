@@ -6,6 +6,7 @@ import Footer from './components/Footer';
 import HomePage from './pages/HomePage';
 import ThriftProductsPage from './pages/ThriftProductsPage';
 import ThriftSearch from './components/ThriftSearch.jsx';
+import SellPage from './pages/SellPage';
 import './App.css';
 
 const theme = createTheme({
@@ -32,6 +33,7 @@ function App() {
                 <Route path="/" element={<HomePage />} />
                 <Route path="/thrift-products" element={<ThriftProductsPage />} />
                 <Route path="/thrift-search" element={<ThriftSearch />} />
+                <Route path="/sell" element={<SellPage />} />
                 {/* Add more routes as needed */}
               </Routes>
             </Container>

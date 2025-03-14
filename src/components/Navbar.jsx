@@ -6,6 +6,7 @@ const navigation = [
   { name: 'Home', to: '/' },
   { name: 'Thrift Products', to: '/thrift-products' },
   { name: 'Thrift Search', to: '/thrift-search' },
+  { name: 'Sell Your Items', to: '/sell' },
   { name: 'AI Mood Boards', to: '/#features' },
   { name: 'Sustainable Brands', to: '/#sustainable' },
   { name: 'Create Lookbook', to: '/#lookbook' },
