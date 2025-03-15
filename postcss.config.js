@@ -1,6 +1,1 @@
-module.exports = {
-  plugins: {
-    tailwindcss: {},
-    autoprefixer: {},
-  },
-} 
+// This file should be deleted as we're replacing it with postcss.config.cjs 

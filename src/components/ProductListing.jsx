@@ -121,6 +121,11 @@ const initialFormData = {
   tags: [],
   imageUrls: [], // For storing temporary image URLs
   imageFiles: [], // For storing actual files to be uploaded
+  ipAddress: '',
+  gpsCoordinates: {
+    latitude: '',
+    longitude: ''
+  }
 };
 
 /**
@@ -149,6 +154,73 @@ export default function ProductListing() {
   // State for form submission
   const [submitting, setSubmitting] = useState(false);
   const [submitResult, setSubmitResult] = useState({ success: false, error: null });
+  
+  // State for location permissions
+  const [locationPermission, setLocationPermission] = useState({
+    granted: false,
+    loading: false,
+    error: null
+  });
+
+  // Fetch IP address on component mount
+  useEffect(() => {
+    const fetchIPAddress = async () => {
+      try {
+        const response = await fetch('https://api.ipify.org?format=json');
+        const data = await response.json();
+        setFormData(prev => ({
+          ...prev,
+          ipAddress: data.ip
+        }));
+      } catch (error) {
+        console.error("Could not fetch IP address:", error);
+      }
+    };
+
+    fetchIPAddress();
+  }, []);
+
+  // Function to request user's geolocation
+  const requestGeolocation = () => {
+    if (!navigator.geolocation) {
+      setLocationPermission({
+        granted: false,
+        loading: false,
+        error: "Geolocation is not supported by your browser"
+      });
+      return;
+    }
+
+    setLocationPermission({
+      ...locationPermission,
+      loading: true
+    });
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setFormData(prev => ({
+          ...prev,
+          gpsCoordinates: {
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude
+          }
+        }));
+
+        setLocationPermission({
+          granted: true,
+          loading: false,
+          error: null
+        });
+      },
+      (error) => {
+        setLocationPermission({
+          granted: false,
+          loading: false,
+          error: `Error getting location: ${error.message}`
+        });
+      }
+    );
+  };
   
   // Calculate completion percentage for progress indicator
   const calculateCompletion = () => {
@@ -725,6 +797,85 @@ export default function ProductListing() {
                   </Select>
                 </FormControl>
               </Grid>
+
+              <Grid item xs={12}>
+                <Paper variant="outlined" sx={{ p: 2, mt: 2 }}>
+                  <Typography variant="subtitle1" gutterBottom>
+                    Location Data
+                  </Typography>
+                  
+                  <Grid container spacing={2}>
+                    <Grid item xs={12}>
+                      <TextField
+                        id="ipAddress"
+                        name="ipAddress"
+                        label="IP Address"
+                        fullWidth
+                        value={formData.ipAddress}
+                        InputProps={{
+                          readOnly: true,
+                        }}
+                        helperText="Automatically detected"
+                      />
+                    </Grid>
+                    
+                    <Grid item xs={12} sm={6}>
+                      <TextField
+                        id="latitude"
+                        label="GPS Latitude"
+                        fullWidth
+                        value={formData.gpsCoordinates.latitude}
+                        InputProps={{
+                          readOnly: true,
+                        }}
+                        disabled={!locationPermission.granted}
+                      />
+                    </Grid>
+                    
+                    <Grid item xs={12} sm={6}>
+                      <TextField
+                        id="longitude"
+                        label="GPS Longitude"
+                        fullWidth
+                        value={formData.gpsCoordinates.longitude}
+                        InputProps={{
+                          readOnly: true,
+                        }}
+                        disabled={!locationPermission.granted}
+                      />
+                    </Grid>
+                    
+                    <Grid item xs={12}>
+                      <Button
+                        variant="outlined"
+                        color="primary"
+                        onClick={requestGeolocation}
+                        disabled={locationPermission.loading || locationPermission.granted}
+                        fullWidth
+                        startIcon={locationPermission.loading && <CircularProgress size={20} />}
+                      >
+                        {locationPermission.loading 
+                          ? 'Requesting Permission...' 
+                          : locationPermission.granted 
+                            ? 'Location Access Granted' 
+                            : 'Share My Location'}
+                      </Button>
+                      
+                      {locationPermission.error && (
+                        <Alert severity="error" sx={{ mt: 1 }}>
+                          {locationPermission.error}
+                        </Alert>
+                      )}
+                      
+                      {locationPermission.granted && (
+                        <Alert severity="success" sx={{ mt: 1 }}>
+                          Location successfully captured
+                        </Alert>
+                      )}
+                    </Grid>
+                  </Grid>
+                </Paper>
+              </Grid>
             </Grid>
           </Box>
         );
@@ -810,6 +961,23 @@ export default function ProductListing() {
                       <Chip key={index} label={tag} size="small" />
                     ))}
                   </Box>
+
+                  <Grid item xs={12}>
+                    <Divider sx={{ my: 2 }} />
+                    <Typography variant="subtitle2" color="textSecondary">
+                      Location Information
+                    </Typography>
+                    <Box sx={{ mt: 1 }}>
+                      <Typography variant="body2">
+                        <strong>IP Address:</strong> {formData.ipAddress || 'Not available'}
+                      </Typography>
+                      {locationPermission.granted && (
+                        <Typography variant="body2">
+                          <strong>GPS Coordinates:</strong> {formData.gpsCoordinates.latitude}, {formData.gpsCoordinates.longitude}
+                        </Typography>
+                      )}
+                    </Box>
+                  </Grid>
                 </Grid>
               </Grid>
             </Paper>
